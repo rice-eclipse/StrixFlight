@@ -18,6 +18,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "cmsis_os.h"
 #include "fatfs.h"
 #include "usb_device.h"
 
@@ -57,6 +58,20 @@ SPI_HandleTypeDef hspi2;
 UART_HandleTypeDef huart2;
 UART_HandleTypeDef huart3;
 
+/* Definitions for StatusLED */
+osThreadId_t StatusLEDHandle;
+const osThreadAttr_t StatusLED_attributes = {
+  .name = "StatusLED",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityBelowNormal,
+};
+/* Definitions for StatusBuzzer */
+osThreadId_t StatusBuzzerHandle;
+const osThreadAttr_t StatusBuzzer_attributes = {
+  .name = "StatusBuzzer",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityLow,
+};
 /* USER CODE BEGIN PV */
 
 /* USER CODE END PV */
@@ -74,6 +89,9 @@ static void MX_I2C2_Init(void);
 static void MX_SPI2_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_USART3_UART_Init(void);
+void StartStatusLED(void *argument);
+void StartStatusBuzzer(void *argument);
+
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -117,7 +135,6 @@ int main(void)
   MX_QUADSPI_Init();
   MX_SDMMC1_SD_Init();
   MX_SPI1_Init();
-  MX_USB_DEVICE_Init();
   MX_ADC1_Init();
   MX_I2C1_Init();
   MX_I2C2_Init();
@@ -126,9 +143,49 @@ int main(void)
   MX_USART3_UART_Init();
   MX_FATFS_Init();
   /* USER CODE BEGIN 2 */
+  /* init code for USB_DEVICE */
+  MX_USB_DEVICE_Init();
 
   /* USER CODE END 2 */
 
+  /* Init scheduler */
+  osKernelInitialize();
+
+  /* USER CODE BEGIN RTOS_MUTEX */
+  /* add mutexes, ... */
+  /* USER CODE END RTOS_MUTEX */
+
+  /* USER CODE BEGIN RTOS_SEMAPHORES */
+  /* add semaphores, ... */
+  /* USER CODE END RTOS_SEMAPHORES */
+
+  /* USER CODE BEGIN RTOS_TIMERS */
+  /* start timers, add new ones, ... */
+  /* USER CODE END RTOS_TIMERS */
+
+  /* USER CODE BEGIN RTOS_QUEUES */
+  /* add queues, ... */
+  /* USER CODE END RTOS_QUEUES */
+
+  /* Create the thread(s) */
+  /* creation of StatusLED */
+  StatusLEDHandle = osThreadNew(StartStatusLED, NULL, &StatusLED_attributes);
+
+  /* creation of StatusBuzzer */
+  StatusBuzzerHandle = osThreadNew(StartStatusBuzzer, NULL, &StatusBuzzer_attributes);
+
+  /* USER CODE BEGIN RTOS_THREADS */
+  /* add threads, ... */
+  /* USER CODE END RTOS_THREADS */
+
+  /* USER CODE BEGIN RTOS_EVENTS */
+  /* add events, ... */
+  /* USER CODE END RTOS_EVENTS */
+
+  /* Start scheduler */
+  osKernelStart();
+
+  /* We should never get here as control is now taken by the scheduler */
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
@@ -621,7 +678,10 @@ static void MX_GPIO_Init(void)
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOD, Pyro_B_Cont_LED_Pin|Pyro_A_Cont_LED_Pin|Pyro_E_Cont_LED_Pin|Pyro_F_Cont_LED_Pin
-                          |Status_LED_Pin|GPS_ExtInt_Pin|GPS_Reset_Pin, GPIO_PIN_RESET);
+                          |GPS_ExtInt_Pin|GPS_Reset_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(Status_LED_GPIO_Port, Status_LED_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pins : Altimeter_Int_Pin Low_G_Accel_Int_Pin */
   GPIO_InitStruct.Pin = Altimeter_Int_Pin|Low_G_Accel_Int_Pin;
@@ -648,13 +708,20 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /*Configure GPIO pins : Pyro_B_Cont_LED_Pin Pyro_A_Cont_LED_Pin Pyro_E_Cont_LED_Pin Pyro_F_Cont_LED_Pin
-                           Status_LED_Pin GPS_ExtInt_Pin GPS_Reset_Pin */
+                           GPS_ExtInt_Pin GPS_Reset_Pin */
   GPIO_InitStruct.Pin = Pyro_B_Cont_LED_Pin|Pyro_A_Cont_LED_Pin|Pyro_E_Cont_LED_Pin|Pyro_F_Cont_LED_Pin
-                          |Status_LED_Pin|GPS_ExtInt_Pin|GPS_Reset_Pin;
+                          |GPS_ExtInt_Pin|GPS_Reset_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : Status_LED_Pin */
+  GPIO_InitStruct.Pin = Status_LED_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(Status_LED_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : SD_Card_Detect_Pin */
   GPIO_InitStruct.Pin = SD_Card_Detect_Pin;
@@ -675,6 +742,79 @@ static void MX_GPIO_Init(void)
 /* USER CODE BEGIN 4 */
 
 /* USER CODE END 4 */
+
+/* USER CODE BEGIN Header_StartStatusLED */
+/**
+  * @brief  Function implementing the StatusLED thread.
+  * @param  argument: Not used
+  * @retval None
+  */
+/* USER CODE END Header_StartStatusLED */
+void StartStatusLED(void *argument)
+{
+  /* init code for USB_DEVICE */
+  MX_USB_DEVICE_Init();
+  /* USER CODE BEGIN 5 */
+  /* Infinite loop */
+  for(;;)
+  {
+	HAL_GPIO_TogglePin(Status_LED_GPIO_Port, Status_LED_Pin);
+    osDelay(250);
+  }
+  /* USER CODE END 5 */
+}
+
+/* USER CODE BEGIN Header_StartStatusBuzzer */
+/**
+* @brief Function implementing the StatusBuzzer thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartStatusBuzzer */
+void StartStatusBuzzer(void *argument)
+{
+  /* USER CODE BEGIN StartStatusBuzzer */
+  uint16_t buzzerCounter = 0;
+  uint8_t buzzerOn = 1;
+  /* Infinite loop */
+  for(;;)
+  {
+	if(buzzerOn) {
+		HAL_GPIO_TogglePin(Buzzer_GPIO_Port, Buzzer_Pin);
+	}
+	if(buzzerCounter % 250 == 0) {
+		buzzerOn = (buzzerOn == 1 ? 0 : 1);
+	}
+	if(buzzerCounter < 2500) {
+		buzzerCounter++;
+		osDelay(1);
+	} else {
+		osThreadTerminate(StatusBuzzerHandle);
+	}
+  }
+  /* USER CODE END StartStatusBuzzer */
+}
+
+/**
+  * @brief  Period elapsed callback in non blocking mode
+  * @note   This function is called  when TIM6 interrupt took place, inside
+  * HAL_TIM_IRQHandler(). It makes a direct call to HAL_IncTick() to increment
+  * a global variable "uwTick" used as application time base.
+  * @param  htim : TIM handle
+  * @retval None
+  */
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+  /* USER CODE BEGIN Callback 0 */
+
+  /* USER CODE END Callback 0 */
+  if (htim->Instance == TIM6) {
+    HAL_IncTick();
+  }
+  /* USER CODE BEGIN Callback 1 */
+
+  /* USER CODE END Callback 1 */
+}
 
 /**
   * @brief  This function is executed in case of error occurrence.
