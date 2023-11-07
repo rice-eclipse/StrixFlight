@@ -27,6 +27,9 @@
 #include "usbd_cdc_if.h"
 #include "string.h"
 #include "stdbool.h"
+//include driver files for our sensors and data storage
+#include "flash_driver.h"
+#include "file_handling.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
