@@ -17,7 +17,7 @@
  * @{
  */
 
-#include "w25q_mem.h"
+#include "flash_driver.h"
 
 /**
  * @addtogroup W25Q_Exp Exported types
