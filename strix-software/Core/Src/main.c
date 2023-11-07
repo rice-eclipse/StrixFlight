@@ -24,7 +24,9 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "usbd_cdc_if.h"
+#include "string.h"
+#include "stdbool.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -216,14 +218,12 @@ void SystemClock_Config(void)
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_MSI;
-  RCC_OscInitStruct.MSIState = RCC_MSI_ON;
-  RCC_OscInitStruct.MSICalibrationValue = 0;
-  RCC_OscInitStruct.MSIClockRange = RCC_MSIRANGE_6;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.HSEState = RCC_HSE_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_MSI;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
   RCC_OscInitStruct.PLL.PLLM = 1;
-  RCC_OscInitStruct.PLL.PLLN = 40;
+  RCC_OscInitStruct.PLL.PLLN = 10;
   RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV7;
   RCC_OscInitStruct.PLL.PLLQ = RCC_PLLQ_DIV2;
   RCC_OscInitStruct.PLL.PLLR = RCC_PLLR_DIV2;
@@ -262,12 +262,12 @@ void PeriphCommonClock_Config(void)
   PeriphClkInit.AdcClockSelection = RCC_ADCCLKSOURCE_PLLSAI1;
   PeriphClkInit.UsbClockSelection = RCC_USBCLKSOURCE_PLLSAI1;
   PeriphClkInit.Sdmmc1ClockSelection = RCC_SDMMC1CLKSOURCE_PLLSAI1;
-  PeriphClkInit.PLLSAI1.PLLSAI1Source = RCC_PLLSOURCE_MSI;
+  PeriphClkInit.PLLSAI1.PLLSAI1Source = RCC_PLLSOURCE_HSE;
   PeriphClkInit.PLLSAI1.PLLSAI1M = 1;
-  PeriphClkInit.PLLSAI1.PLLSAI1N = 24;
+  PeriphClkInit.PLLSAI1.PLLSAI1N = 12;
   PeriphClkInit.PLLSAI1.PLLSAI1P = RCC_PLLP_DIV7;
-  PeriphClkInit.PLLSAI1.PLLSAI1Q = RCC_PLLQ_DIV2;
-  PeriphClkInit.PLLSAI1.PLLSAI1R = RCC_PLLR_DIV2;
+  PeriphClkInit.PLLSAI1.PLLSAI1Q = RCC_PLLQ_DIV4;
+  PeriphClkInit.PLLSAI1.PLLSAI1R = RCC_PLLR_DIV4;
   PeriphClkInit.PLLSAI1.PLLSAI1ClockOut = RCC_PLLSAI1_48M2CLK|RCC_PLLSAI1_ADC1CLK;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
   {
@@ -755,11 +755,31 @@ void StartStatus(void *argument)
   /* init code for USB_DEVICE */
   MX_USB_DEVICE_Init();
   /* USER CODE BEGIN 5 */
+  uint16_t buzzerCount = 0;
+  uint8_t buzzerOn = 1;
   /* Infinite loop */
   for(;;)
   {
-	HAL_GPIO_TogglePin(Status_LED_GPIO_Port, Status_LED_Pin);
-    osDelay(250);
+	if(buzzerCount < 2500) {
+	  if(buzzerOn == 1) {
+		HAL_GPIO_TogglePin(Buzzer_GPIO_Port, Buzzer_Pin);
+	  }
+	  if(buzzerCount % 250 == 0) {
+	    buzzerOn = (buzzerOn == 1 ? 0 : 1);
+	    HAL_GPIO_TogglePin(Status_LED_GPIO_Port, Status_LED_Pin);
+	    HAL_GPIO_TogglePin(Pyro_A_Cont_LED_GPIO_Port, Pyro_A_Cont_LED_Pin);
+	    HAL_GPIO_TogglePin(Pyro_B_Cont_LED_GPIO_Port, Pyro_B_Cont_LED_Pin);
+	    HAL_GPIO_TogglePin(Pyro_C_Cont_LED_GPIO_Port, Pyro_C_Cont_LED_Pin);
+	    HAL_GPIO_TogglePin(Pyro_D_Cont_LED_GPIO_Port, Pyro_D_Cont_LED_Pin);
+	    HAL_GPIO_TogglePin(Pyro_E_Cont_LED_GPIO_Port, Pyro_E_Cont_LED_Pin);
+	    HAL_GPIO_TogglePin(Pyro_F_Cont_LED_GPIO_Port, Pyro_F_Cont_LED_Pin);
+	  }
+	  buzzerCount++;
+	  osDelay(1);
+	} else {
+	  HAL_GPIO_TogglePin(Status_LED_GPIO_Port, Status_LED_Pin);
+      osDelay(250);
+	}
   }
   /* USER CODE END 5 */
 }
@@ -774,10 +794,24 @@ void StartStatus(void *argument)
 void StartUSBCom(void *argument)
 {
   /* USER CODE BEGIN StartUSBCom */
+  char txBuf[7];
+  uint8_t count = 1;
   /* Infinite loop */
   for(;;)
   {
-    osDelay(1);
+	sprintf(txBuf, "%u\r\n", count);
+	count++;
+	uint8_t result = CDC_Transmit_FS((uint8_t *) txBuf, strlen(txBuf));
+	if (count>100) {
+	  count = 1;
+	}
+	if (result == USBD_OK) {
+	    HAL_GPIO_TogglePin(Pyro_F_Trigger_GPIO_Port, Pyro_F_Trigger_Pin);
+	} else if (result == USBD_BUSY) {
+	    HAL_GPIO_TogglePin(Pyro_A_Trigger_GPIO_Port, Pyro_A_Trigger_Pin);
+	}
+
+    osDelay(100);
   }
   /* USER CODE END StartUSBCom */
 }

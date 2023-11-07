@@ -20,7 +20,7 @@ typedef uint16_t u16_t; ///< 16-bit unsigned
 typedef int16_t i16_t;	///< 16-bit signed
 typedef uint32_t u32_t; ///< 32-bit unsigned
 typedef int32_t i32_t;	///< 32-bit signed
-typedef float_t fl_t;	///< float type
+typedef float fl_t;	///< float type
 
 #define delay(x) HAL_Delay(x) ///< arduino-supportable delay or RTOS support ability
 
