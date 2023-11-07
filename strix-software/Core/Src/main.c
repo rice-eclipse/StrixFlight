@@ -58,19 +58,19 @@ SPI_HandleTypeDef hspi2;
 UART_HandleTypeDef huart2;
 UART_HandleTypeDef huart3;
 
-/* Definitions for StatusLED */
-osThreadId_t StatusLEDHandle;
-const osThreadAttr_t StatusLED_attributes = {
-  .name = "StatusLED",
+/* Definitions for Status */
+osThreadId_t StatusHandle;
+const osThreadAttr_t Status_attributes = {
+  .name = "Status",
   .stack_size = 128 * 4,
   .priority = (osPriority_t) osPriorityBelowNormal,
 };
-/* Definitions for StatusBuzzer */
-osThreadId_t StatusBuzzerHandle;
-const osThreadAttr_t StatusBuzzer_attributes = {
-  .name = "StatusBuzzer",
+/* Definitions for USBCom */
+osThreadId_t USBComHandle;
+const osThreadAttr_t USBCom_attributes = {
+  .name = "USBCom",
   .stack_size = 128 * 4,
-  .priority = (osPriority_t) osPriorityLow,
+  .priority = (osPriority_t) osPriorityNormal,
 };
 /* USER CODE BEGIN PV */
 
@@ -89,8 +89,8 @@ static void MX_I2C2_Init(void);
 static void MX_SPI2_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_USART3_UART_Init(void);
-void StartStatusLED(void *argument);
-void StartStatusBuzzer(void *argument);
+void StartStatus(void *argument);
+void StartUSBCom(void *argument);
 
 /* USER CODE BEGIN PFP */
 
@@ -168,11 +168,11 @@ int main(void)
   /* USER CODE END RTOS_QUEUES */
 
   /* Create the thread(s) */
-  /* creation of StatusLED */
-  StatusLEDHandle = osThreadNew(StartStatusLED, NULL, &StatusLED_attributes);
+  /* creation of Status */
+  StatusHandle = osThreadNew(StartStatus, NULL, &Status_attributes);
 
-  /* creation of StatusBuzzer */
-  StatusBuzzerHandle = osThreadNew(StartStatusBuzzer, NULL, &StatusBuzzer_attributes);
+  /* creation of USBCom */
+  USBComHandle = osThreadNew(StartUSBCom, NULL, &USBCom_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -743,14 +743,14 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE END 4 */
 
-/* USER CODE BEGIN Header_StartStatusLED */
+/* USER CODE BEGIN Header_StartStatus */
 /**
-  * @brief  Function implementing the StatusLED thread.
+  * @brief  Function implementing the Status thread.
   * @param  argument: Not used
   * @retval None
   */
-/* USER CODE END Header_StartStatusLED */
-void StartStatusLED(void *argument)
+/* USER CODE END Header_StartStatus */
+void StartStatus(void *argument)
 {
   /* init code for USB_DEVICE */
   MX_USB_DEVICE_Init();
@@ -764,35 +764,22 @@ void StartStatusLED(void *argument)
   /* USER CODE END 5 */
 }
 
-/* USER CODE BEGIN Header_StartStatusBuzzer */
+/* USER CODE BEGIN Header_StartUSBCom */
 /**
-* @brief Function implementing the StatusBuzzer thread.
+* @brief Function implementing the USBCom thread.
 * @param argument: Not used
 * @retval None
 */
-/* USER CODE END Header_StartStatusBuzzer */
-void StartStatusBuzzer(void *argument)
+/* USER CODE END Header_StartUSBCom */
+void StartUSBCom(void *argument)
 {
-  /* USER CODE BEGIN StartStatusBuzzer */
-  uint16_t buzzerCounter = 0;
-  uint8_t buzzerOn = 1;
+  /* USER CODE BEGIN StartUSBCom */
   /* Infinite loop */
   for(;;)
   {
-	if(buzzerOn) {
-		HAL_GPIO_TogglePin(Buzzer_GPIO_Port, Buzzer_Pin);
-	}
-	if(buzzerCounter % 250 == 0) {
-		buzzerOn = (buzzerOn == 1 ? 0 : 1);
-	}
-	if(buzzerCounter < 2500) {
-		buzzerCounter++;
-		osDelay(1);
-	} else {
-		osThreadTerminate(StatusBuzzerHandle);
-	}
+    osDelay(1);
   }
-  /* USER CODE END StartStatusBuzzer */
+  /* USER CODE END StartUSBCom */
 }
 
 /**
